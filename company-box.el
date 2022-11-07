@@ -497,12 +497,14 @@ It doesn't nothing if a font icon is used."
     (save-excursion
       (delete-region start end)
       (goto-char start)
-      (insert
-       (with-current-buffer company-box--parent-buffer
-         (--> candidates
-              (mapcar (-compose 'company-box--make-line 'company-box--make-candidate) it)
-              (mapconcat 'identity it "\n")))
-       "\n")
+      (let ((is-first t))
+        (seq-doseq (c candidates)
+          (if is-first
+              (setq is-first nil)
+            (insert "\n"))
+          (insert
+           (with-current-buffer company-box--parent-buffer
+             (company-box--make-candidate-line c)))))
       (put-text-property start (point) 'company-box--rendered t))))
 
 (defun company-box--render-buffer (string on-update)
@@ -733,9 +735,8 @@ It doesn't nothing if a font icon is used."
   (let ((side (if (eq company-show-quick-access 'left) 'left-margin 'right-margin)))
     (propertize " " 'company-box--number-pos t 'display `((margin ,side) "  "))))
 
-(defun company-box--make-line (candidate)
-  (-let* (((candidate annotation len-c len-a backend) candidate)
-          (color (company-box--get-color backend))
+(defun company-box--make-line (candidate annotation len-c len-a backend)
+  (-let* ((color (company-box--get-color backend))
           ((c-color a-color i-color s-color) (company-box--resolve-colors color))
           (icon-string (and company-box--with-icons-p (company-box--add-icon candidate)))
           (candidate-string (company-box--candidate-string candidate len-c))
@@ -767,7 +768,7 @@ It doesn't nothing if a font icon is used."
       (and (symbolp company-backend) company-backend)
       (--first (and it (not (keywordp it))) company-backend)))
 
-(defun company-box--make-candidate (candidate)
+(defun company-box--make-candidate-line (candidate)
   (let* ((annotation (-some->> (company-call-backend 'annotation candidate)
                        (replace-regexp-in-string "[ \t\n\r]+" " ")
                        (string-trim)))
