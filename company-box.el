@@ -678,19 +678,20 @@ It doesn't nothing if a font icon is used."
           (icon-string (company-box--get-icon icon))
           (display-props (unless is-image (get-text-property 0 'display icon-string))))
     (concat
-     (cond (is-image icon-string)
-           (display-props
-            ;; The string already has a display prop, add height to it
-            (--> (if (listp (car display-props))
-                     (append display-props '((height 0.95)))
-                   (append `(,display-props) '((height 0.95))))
-                 (put-text-property 0 (length icon-string) 'display it icon-string))
-            icon-string)
-           (t
-            ;; Make sure the string is not bigger than other text.
-            ;; It causes invalid computation of the frame size, ..
-            (put-text-property 0 (length icon-string) 'display '((height 0.95)) icon-string)
-            icon-string))
+     (if is-image
+         icon-string
+       (setq display-props
+             (let ((h (assoc 'height display-props)))
+               (cond ((null h)
+                      (cons '(height 0.95) display-props))
+                     ((and (numberp h) (= h 0.95))
+                      display-props)
+                     (t
+                      (cons '(height 0.95)
+                            (assoc-delete-all 'height display-props))))))
+       (put-text-property 0 (length icon-string) 'display display-props
+                          icon-string)
+       icon-string)
      (propertize " " 'display `(space :align-to (+ company-box-icon-right-margin
                                                    left-fringe
                                                    ,(if (> company-box--space 2) 3 2)))))))
@@ -776,11 +777,9 @@ It doesn't nothing if a font icon is used."
          (backend (company-box--backend candidate)))
     (when (> len-total company-box--max)
       (setq company-box--max len-total))
-    (list candidate
-          annotation
-          len-candidate
-          len-annotation
-          backend)))
+    (company-box--make-line candidate annotation
+                            len-candidate len-annotation
+                            backend)))
 
 (defvar-local company-box--parent-start nil)
 
